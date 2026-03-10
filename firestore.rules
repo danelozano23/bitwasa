@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if user is admin (email starts with admin@ and ends with @bitwasa.com)
+    function isAdmin() {
+      return request.auth != null &&
+             request.auth.token.email.matches('admin@.*\\.com');
+    }
+
+    // Helper: any authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Consumers — read by all auth users, write only by admin
+    match /consumers/{consumerId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Bills — read by all, create by any auth (meter readers can add readings)
+    // update/delete only by admin (to mark paid/unpaid or delete)
+    match /bills/{billId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // System users — admin only
+    match /systemUsers/{userId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
